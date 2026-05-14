@@ -138,21 +138,45 @@ export function distributeNodes(
 }
 
 export function bringToFront(nodes: Node[], selectedNodes: Node[]): Node[] {
-  const maxZ = Math.max(...nodes.map(n => n.zIndex || 0));
-  return nodes.map(node =>
-    selectedNodes.some(sn => sn.id === node.id)
-      ? { ...node, zIndex: maxZ + 1 }
-      : node
-  );
+  const subgraphNodes = nodes.filter(n => n.type === 'group');
+  const regularNodes = nodes.filter(n => n.type !== 'group');
+
+  const maxSubgraphZ = subgraphNodes.length > 0 ? Math.max(...subgraphNodes.map(n => n.zIndex || -50)) : -50;
+  const maxRegularZ = regularNodes.length > 0 ? Math.max(...regularNodes.map(n => n.zIndex || 0)) : 0;
+
+  return nodes.map(node => {
+    if (!selectedNodes.some(sn => sn.id === node.id)) return node;
+    
+    if (node.type === 'group') {
+      // Bring to front of other subgraphs, but keep below nodes
+      // Capped at -1 to ensure it stays in the negative range
+      return { ...node, zIndex: Math.min(-1, maxSubgraphZ + 1) };
+    } else {
+      // Bring to front of other nodes
+      return { ...node, zIndex: maxRegularZ + 1 };
+    }
+  });
 }
 
 export function sendToBack(nodes: Node[], selectedNodes: Node[]): Node[] {
-  const minZ = Math.min(...nodes.map(n => n.zIndex || 0));
-  return nodes.map(node =>
-    selectedNodes.some(sn => sn.id === node.id)
-      ? { ...node, zIndex: minZ - 1 }
-      : node
-  );
+  const subgraphNodes = nodes.filter(n => n.type === 'group');
+  const regularNodes = nodes.filter(n => n.type !== 'group');
+
+  const minSubgraphZ = subgraphNodes.length > 0 ? Math.min(...subgraphNodes.map(n => n.zIndex || -50)) : -50;
+  const minRegularZ = regularNodes.length > 0 ? Math.min(...regularNodes.map(n => n.zIndex || 0)) : 0;
+
+  return nodes.map(node => {
+    if (!selectedNodes.some(sn => sn.id === node.id)) return node;
+    
+    if (node.type === 'group') {
+      // Send to back of other subgraphs
+      return { ...node, zIndex: minSubgraphZ - 1 };
+    } else {
+      // Send to back of other nodes, but keep above subgraphs
+      // Minimum 0 to ensure it stays in the positive range
+      return { ...node, zIndex: Math.max(0, minRegularZ - 1) };
+    }
+  });
 }
 
 // Counter to ensure unique IDs even when duplicating rapidly
@@ -173,16 +197,82 @@ export function duplicateNodes(nodes: Node[], selectedNodes: Node[]): Node[] {
   return newNodes;
 }
 
+// Helper to calculate absolute position of a node in the hierarchy
+export function getAbsolutePosition(node: Node, allNodes: Node[]): { x: number, y: number } {
+  let x = node.position.x;
+  let y = node.position.y;
+  let current = node;
+  
+  while (current.parentNode) {
+    const parent = allNodes.find(n => n.id === current.parentNode);
+    if (!parent) break;
+    x += parent.position.x;
+    y += parent.position.y;
+    current = parent;
+  }
+  
+  return { x, y };
+}
+
 export function deleteSelected(nodes: Node[], edges: Edge[], selectedNodes: Node[], selectedEdges: Edge[]) {
-  const nodeIdsToDelete = selectedNodes.map(n => n.id);
-  const edgeIdsToDelete = selectedEdges.map(e => e.id);
-  const newNodes = nodes.filter(n => !nodeIdsToDelete.includes(n.id));
-  // Remove selected edges AND edges connected to deleted nodes
+  const nodeIdsToDelete = new Set(selectedNodes.map(n => n.id));
+  const edgeIdsToDelete = new Set(selectedEdges.map(e => e.id));
+  
+  // We want to keep any node that isn't explicitly selected for deletion
+  // If its parent is deleted, we "ungroup" it by making it top-level or attaching to a surviving grandparent
+  const newNodes = nodes
+    .filter(node => !nodeIdsToDelete.has(node.id))
+    .map(node => {
+      // If this node's parent is being deleted, we need to transform its coordinates
+      if (node.parentNode && nodeIdsToDelete.has(node.parentNode)) {
+        const absPos = getAbsolutePosition(node, nodes);
+        
+        // Try to find a surviving ancestor to attach to
+        let nextParentId = node.parentNode;
+        let survivingAncestor: Node | undefined;
+        
+        while (nextParentId) {
+          const parent = nodes.find(n => n.id === nextParentId);
+          if (!parent) break;
+          
+          if (!nodeIdsToDelete.has(parent.id)) {
+            survivingAncestor = parent;
+            break;
+          }
+          nextParentId = parent.parentNode!;
+        }
+
+        if (survivingAncestor) {
+          const ancestorAbsPos = getAbsolutePosition(survivingAncestor, nodes);
+          return {
+            ...node,
+            parentNode: survivingAncestor.id,
+            position: {
+              x: absPos.x - ancestorAbsPos.x,
+              y: absPos.y - ancestorAbsPos.y
+            }
+          };
+        } else {
+          // No surviving ancestors, make it a top-level node
+          return {
+            ...node,
+            parentNode: undefined,
+            extent: undefined,
+            position: absPos
+          };
+        }
+      }
+      return node;
+    });
+
+  // Remove selected edges AND edges connected to nodes that were actually deleted
+  const newNodeIds = new Set(newNodes.map(n => n.id));
   const newEdges = edges.filter(e => 
-    !edgeIdsToDelete.includes(e.id) && 
-    !nodeIdsToDelete.includes(e.source) && 
-    !nodeIdsToDelete.includes(e.target)
+    !edgeIdsToDelete.has(e.id) && 
+    newNodeIds.has(e.source) && 
+    newNodeIds.has(e.target)
   );
+
   return { newNodes, newEdges };
 }
 

@@ -585,7 +585,7 @@ textarea {
 .custom-node {
   background-color: white;
   border: 2px solid #e5e7eb;
-  border-radius: 8px;
+  border-radius: 0px; /* Default no rounded corners */
   padding: 10px; /* slightly reduced so node-content padding can breathe */
   cursor: pointer;
   display: flex;
@@ -663,7 +663,6 @@ textarea {
   transform: rotate(-45deg);
   width: 70%;
   height: 70%;
-  overflow: hidden; /* Ensure text stays within the rotated content area */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -675,6 +674,19 @@ textarea {
 
 .custom-node.shape-round {
   border-radius: 15px;
+}
+
+.custom-node.shape-parallelogram {
+  border-radius: 4px;
+  transform: skew(-15deg);
+}
+
+.custom-node.shape-parallelogram .node-content {
+  transform: skew(15deg);
+}
+
+.custom-node.shape-cylinder {
+  border-radius: 50% / 15px;
 }
 
 /* .react-flow__node.react-flow__node-custom {
@@ -932,10 +944,12 @@ textarea {
   font-weight: 700;
   /* Better text handling for diamond shape */
   font-size: clamp(8px, 1.5vw, 12px);
-  /* Ensure text doesn't overflow the rotated diamond */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* Allow text to wrap inside the diamond */
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  text-align: center;
 }
 
 /* Subgraph/Group Node Styles */
@@ -1143,16 +1157,12 @@ textarea {
 
 .subgraph-title {
   margin: 0;
-  font-size: 12px; /* Make the font size smaller */
+  font-size: 12px;
   font-weight: 700;
   text-align: left;
-  background: rgba(255, 255, 255, 0.95);
-  padding: 4px 6px; /* Reduce padding for a smaller appearance */
-  border-radius: 10px; /* Adjust border radius for a smaller look */
+  background: transparent;
+  padding: 4px 6px;
   display: inline-block;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15); /* Reduce shadow for a smaller look */
-  border: 1px solid rgba(255, 255, 255, 0.3); /* Adjust border for a smaller look */
-  backdrop-filter: blur(5px); /* Reduce blur effect */
   color: #2D3748;
 }
 

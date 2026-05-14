@@ -103,6 +103,10 @@ function cleanLabel(label: string): string {
 */
 
 function getNodeShape(nodeDefinition: string): string {
+  if (nodeDefinition.includes("[/") && nodeDefinition.includes("/]"))
+    return "parallelogram";
+  if (nodeDefinition.includes("[(") && nodeDefinition.includes(")]"))
+    return "cylinder";
   if (nodeDefinition.includes("{") && nodeDefinition.includes("}"))
     return "diamond";
   if (nodeDefinition.includes("((") && nodeDefinition.includes("))"))
@@ -123,12 +127,17 @@ export function parseMermaidCode(code: string): {
   edges: MermaidEdge[];
   subgraphs: SubgraphInfo[];
   direction: string;
+  classDefs: Map<string, Record<string, string>>;
+  nodeClasses: Map<string, string[]>;
 } {
   const nodes: MermaidNode[] = [];
   const edges: MermaidEdge[] = [];
   const subgraphs: SubgraphInfo[] = [];
   const nodeMap = new Map<string, MermaidNode>();
   const subgraphMap = new Map<string, SubgraphInfo>();
+  
+  const classDefs = new Map<string, Record<string, string>>();
+  const nodeClasses = new Map<string, string[]>();
   
   // Track all node definitions found in the code
   const nodeDefinitions = new Map<string, { label: string; shape: string; fullDef: string }>();
@@ -223,6 +232,43 @@ export function parseMermaidCode(code: string): {
     const trimmedLine = line.trim();
     if (!trimmedLine || trimmedLine.startsWith("subgraph") || trimmedLine === "end" || trimmedLine.startsWith("%%")) return;
 
+    // Handle classDef
+    if (trimmedLine.startsWith("classDef ")) {
+      const match = trimmedLine.match(/^classDef\s+([a-zA-Z0-9_\-]+)\s+(.+)$/);
+      if (match) {
+        const className = match[1];
+        const styleStr = match[2];
+        const styles: Record<string, string> = {};
+        styleStr.split(',').forEach(s => {
+          const [k, v] = s.split(':').map(str => str.trim());
+          if (k && v) {
+            if (k === 'fill') styles['backgroundColor'] = v;
+            else if (k === 'stroke') styles['borderColor'] = v;
+            else if (k === 'stroke-width') styles['borderWidth'] = v;
+            else if (k === 'color') styles['color'] = v;
+            else if (k === 'stroke-dasharray') styles['borderStyle'] = 'dashed';
+            else styles[k] = v;
+          }
+        });
+        classDefs.set(className, styles);
+      }
+      return;
+    }
+
+    // Handle class
+    if (trimmedLine.startsWith("class ")) {
+      const match = trimmedLine.match(/^class\s+([a-zA-Z0-9_,\s\-]+)\s+([a-zA-Z0-9_\-]+)$/);
+      if (match) {
+        const nodeIds = match[1].split(',').map(s => s.trim());
+        const className = match[2];
+        nodeIds.forEach(id => {
+          if (!nodeClasses.has(id)) nodeClasses.set(id, []);
+          nodeClasses.get(id)!.push(className);
+        });
+      }
+      return;
+    }
+
     // Improved node definition scanner: match complete node definitions
     // Look for node definitions that appear at word boundaries or after arrows/spaces
     // This prevents matching letters within labels
@@ -264,6 +310,14 @@ export function parseMermaidCode(code: string): {
       if (closeIndex !== -1) {
         fullDef = trimmedLine.slice(matchStart, closeIndex + 1);
         shapeDef = trimmedLine.slice(openIndex, closeIndex + 1);
+        
+        // check for inline classes
+        const afterClose = trimmedLine.slice(closeIndex + 1);
+        const inlineClassMatch = afterClose.match(/^:::([a-zA-Z0-9_\-]+)/);
+        if (inlineClassMatch) {
+          if (!nodeClasses.has(nodeId)) nodeClasses.set(nodeId, []);
+          nodeClasses.get(nodeId)!.push(inlineClassMatch[1]);
+        }
       } else {
         // Fallback: try to find any bracket sequence starting from our position
         const remainingLine = trimmedLine.slice(matchStart);
@@ -782,7 +836,7 @@ export function parseMermaidCode(code: string): {
     debugLog(`- Edge ${index}: ${edge.source} -> ${edge.target} (label: "${edge.label}", type: "${edge.type}")`);
   });
 
-  return { nodes, edges, subgraphs, direction };
+  return { nodes, edges, subgraphs, direction, classDefs, nodeClasses };
 }
 
 
@@ -825,10 +879,11 @@ function calculateNodeSize(label: string, shape: string, isImageNode: boolean = 
   const height = Math.max(40, baseHeight + 20); // Content + 20px extra, min 40px for readability
 
   if (shape === "diamond") {
+    // Increase size for diamond so text fits within the diagonal bounding box
+    const diag = Math.ceil(Math.sqrt(width * width + height * height));
     return {
-      // Slightly increase to account for diagonal bounding box
-      width: Math.max(90, Math.ceil(width * 1.05)),
-      height: Math.max(90, Math.ceil(height * 1.05)),
+      width: Math.max(120, diag),
+      height: Math.max(120, diag),
     };
   }
   if (shape === "circle") {
@@ -1651,7 +1706,9 @@ function createReactFlowElements(
   subgraphLayouts: Map<string, SubgraphLayout>,
   subgraphPositions: Map<string, { x: number; y: number }>,
   standalonePositions: Map<string, { x: number; y: number }>,
-  direction: string
+  direction: string,
+  classDefs: Map<string, Record<string, string>>,
+  nodeClasses: Map<string, string[]>
 ): ReactFlowData {
   const reactFlowNodes: Node[] = [];
 
@@ -1714,6 +1771,14 @@ function createReactFlowElements(
         }
       }
 
+      // Calculate depth for zIndex - ensure subgraphs are always below nodes
+      const getDepth = (id: string): number => {
+        const sg = subgraphs.find(s => s.id === id);
+        if (!sg || !sg.parentId) return 0;
+        return 1 + getDepth(sg.parentId);
+      };
+      const depth = getDepth(subgraph.id);
+
       reactFlowNodes.push({
         id: `subgraph-${subgraph.id}`,
         type: "group",
@@ -1724,19 +1789,18 @@ function createReactFlowElements(
         },
         style: {
           backgroundColor: colors.bg,
-          border: `3px solid ${colors.border}`,
-          borderRadius: "12px",
+          border: `2px solid #000000`,
+          borderRadius: "0px",
           width: layout.width,
           height: layout.height,
           boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
-            zIndex: 0,
         },
         selectable: true,
         draggable: true,
         connectable: true,
         parentNode: layout.parentId ? `subgraph-${layout.parentId}` : undefined,
         extent: layout.parentId ? "parent" : undefined,
-        zIndex: layout.parentId ? 1 : 0, // Child subgraphs should render above parents
+        zIndex: -50 + depth, // Subgraphs are always at the bottom (negative zIndex)
       });
     }
   });
@@ -1751,7 +1815,7 @@ function createReactFlowElements(
       borderColor: colors.borderColor,
       borderWidth: "2px",
       borderStyle: "solid" as const,
-      borderRadius: "8px",
+      borderRadius: "0px",
       boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
     };
 
@@ -1761,9 +1825,27 @@ function createReactFlowElements(
         backgroundColor: "transparent",
         background: "transparent",
         border: "none",
-        borderRadius: "8px",
+        borderRadius: "0px",
         boxShadow: "none",
       };
+    } else {
+      // Apply custom classes if any
+      const nClasses = nodeClasses.get(node.id);
+      if (nClasses) {
+        nClasses.forEach(cls => {
+          const customStyle = classDefs.get(cls);
+          if (customStyle) {
+            Object.assign(nodeStyle, customStyle);
+          }
+        });
+      }
+
+      // Enforce border color rules
+      if (nodeStyle.borderStyle === 'dashed' || nodeStyle.strokeDasharray) {
+        nodeStyle.borderColor = '#999999'; // Gray for dashed
+      } else {
+        nodeStyle.borderColor = '#000000'; // Black for solid
+      }
     }
 
     // Adjust style based on shape
@@ -1868,19 +1950,18 @@ function createReactFlowElements(
       parentNode: parentNode,
       extent: parentNode ? "parent" : undefined,
       draggable: true,
-      zIndex: 1,
+      zIndex: 10, // Nodes are always on top of subgraphs
     });
   });
 
   // Create edges with consistent styling
 const reactFlowEdges: Edge[] = edges.map((edge, index) => {
-  const edgeColors = ["#1976D2", "#388E3C", "#F57C00", "#7B1FA2", "#C2185B"];
-  const edgeColor = edgeColors[index % edgeColors.length];
+  const edgeColor = "#000000";
 
   // Default edge style - make all edges consistent
   let edgeStyle: any = {
     stroke: edgeColor,
-    strokeWidth: 2.5, // Increased default width
+    strokeWidth: 1.5, // Thinner lines
   };
 
   // Always use smoothstep for consistency
@@ -1956,7 +2037,9 @@ function layoutGraph(
   nodes: MermaidNode[],
   edges: MermaidEdge[],
   subgraphs: SubgraphInfo[],
-  direction: string
+  direction: string,
+  classDefs: Map<string, Record<string, string>>,
+  nodeClasses: Map<string, string[]>
 ): { nodes: Node[]; edges: Edge[] } {
   debugLog("Starting graph layout with direction:", direction);
   debugLog(
@@ -1986,7 +2069,9 @@ function layoutGraph(
     subgraphLayouts,
     subgraphPositions,
     standalonePositions,
-    direction
+    direction,
+    classDefs,
+    nodeClasses
   );
 }
 
@@ -1994,7 +2079,7 @@ function layoutGraph(
 export async function debugConvertMermaid(
   mermaidCode: string
 ): Promise<any> {
-  const { nodes, edges, subgraphs, direction } = parseMermaidCode(mermaidCode);
+  const { nodes, edges, subgraphs, direction, classDefs, nodeClasses } = parseMermaidCode(mermaidCode);
 
   const subgraphLayouts = layoutSubgraphs(nodes, edges, subgraphs, direction);
   const { subgraphPositions, standalonePositions } = layoutMetaGraph(
@@ -2019,7 +2104,9 @@ export async function debugConvertMermaid(
     subgraphLayouts,
     subgraphPositions,
     standalonePositions,
-    direction
+    direction,
+    classDefs,
+    nodeClasses
   );
 
   // Convert Maps to plain objects/arrays for JSON-friendly output
@@ -2062,7 +2149,7 @@ export async function convertMermaidToReactFlow(
     debugLog("Mermaid code:", mermaidCode);
 
     // Parse the Mermaid code
-    const { nodes, edges, subgraphs, direction } =
+    const { nodes, edges, subgraphs, direction, classDefs, nodeClasses } =
       parseMermaidCode(mermaidCode);
 
     if (nodes.length === 0) {
@@ -2075,7 +2162,7 @@ export async function convertMermaidToReactFlow(
     );
 
     // Layout the graph and return
-    return layoutGraph(nodes, edges, subgraphs, direction);
+    return layoutGraph(nodes, edges, subgraphs, direction, classDefs, nodeClasses);
   } catch (error) {
     console.error("Error converting Mermaid to React Flow:", error);
     return { nodes: [], edges: [] };

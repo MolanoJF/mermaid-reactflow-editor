@@ -99,8 +99,6 @@ function DiamondNodeInner(props: DiamondNodeProps) {
           keepAspectRatio
           minWidth={60}
           minHeight={60}
-          maxWidth={500}
-          maxHeight={500}
           handleStyle={RESIZER_STYLES.handle}
           lineStyle={RESIZER_STYLES.line}
         />

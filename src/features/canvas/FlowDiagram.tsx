@@ -140,9 +140,63 @@ function FlowDiagramInternal({
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
       const hasSelectChange = changes.some((c) => c.type === 'select');
+      
       unstable_batchedUpdates(() => {
         setNodes((nds) => {
-          const updated = applyNodeChanges(changes, nds);
+          // Identify nodes that are about to be removed
+          const removedIds = new Set(changes.filter(c => c.type === 'remove').map(c => (c as any).id));
+          
+          // Apply changes to get the first draft of updated nodes
+          let updated = applyNodeChanges(changes, nds);
+          
+          // If any node was removed, check if it was a parent to any remaining nodes
+          if (removedIds.size > 0) {
+            updated = updated.map(node => {
+              // If this node remains but its parent was removed, we need to "ungroup" it
+              if (node.parentNode && removedIds.has(node.parentNode)) {
+                // Calculate absolute position based on the PREVIOUS nodes state (nds)
+                // because the parent is still available in 'nds' for coordinate calculation
+                const absPos = getAbsolutePosition(node, nds);
+                
+                // Try to find a surviving ancestor to attach to
+                const parentNode = nds.find(n => n.id === node.parentNode);
+                let nextParentId = parentNode?.parentNode;
+                let survivingAncestor: Node | undefined;
+                
+                while (nextParentId) {
+                  const ancestor = nds.find(n => n.id === nextParentId);
+                  if (!ancestor) break;
+                  
+                  if (!removedIds.has(ancestor.id)) {
+                    survivingAncestor = ancestor;
+                    break;
+                  }
+                  nextParentId = ancestor.parentNode!;
+                }
+
+                if (survivingAncestor) {
+                  const ancestorAbsPos = getAbsolutePosition(survivingAncestor, nds);
+                  return {
+                    ...node,
+                    parentNode: survivingAncestor.id,
+                    position: {
+                      x: absPos.x - ancestorAbsPos.x,
+                      y: absPos.y - ancestorAbsPos.y
+                    }
+                  };
+                } else {
+                  return {
+                    ...node,
+                    parentNode: undefined,
+                    extent: undefined,
+                    position: absPos
+                  };
+                }
+              }
+              return node;
+            });
+          }
+
           if (hasSelectChange) {
             const sel = updated.filter((n) => n.selected);
             setSelectedNodes(sel);
@@ -151,7 +205,7 @@ function FlowDiagramInternal({
         });
       });
     },
-    [setNodes]
+    [setNodes] // Removed 'nodes' dependency as nds from the functional update is sufficient and safer
   );
 
   const onEdgesChange = useCallback(
@@ -536,11 +590,11 @@ function FlowDiagramInternal({
             const id = `${type}-${Date.now()}`;
             let newNode: any;
             if (type === 'node') {
-              newNode = { id, type: 'custom', position, data: { label: 'New Node' }, style: { width: 150, height: 50 } };
+              newNode = { id, type: 'custom', position, data: { label: 'New Node' }, style: { width: 150, height: 50 }, zIndex: 10 };
             } else if (type === 'subgraph') {
-              newNode = { id, type: 'group', position, data: { label: 'New Subgraph' }, style: { width: 220, height: 120, background: '#e3f2fd', border: '2px dashed #1976D2' } };
+              newNode = { id, type: 'group', position, data: { label: 'New Subgraph' }, style: { width: 220, height: 120, background: '#e3f2fd', border: '2px dashed #1976D2' }, zIndex: -50 };
             } else if (type === 'diamond') {
-              newNode = { id, type: 'diamond', position, data: { label: 'Conditional' }, style: { width: 120, height: 120, backgroundColor: '#FFF3E0', borderColor: '#F57C00' } };
+              newNode = { id, type: 'diamond', position, data: { label: 'Conditional' }, style: { width: 120, height: 120, backgroundColor: '#FFF3E0', borderColor: '#F57C00' }, zIndex: 10 };
             }
             if (newNode) {
               setNodes((nds) => {

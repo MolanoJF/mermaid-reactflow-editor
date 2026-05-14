@@ -170,8 +170,6 @@ function CustomNodeInner(props: CustomNodeProps) {
           isVisible={selected}
           minWidth={isImageNode ? 60 : 40}
           minHeight={isImageNode ? 60 : 30}
-          maxWidth={500}
-          maxHeight={400}
           keepAspectRatio={data.shape === 'circle' || isImageNode}
           handleStyle={RESIZER_STYLES.handle}
           lineStyle={RESIZER_STYLES.line}
