@@ -6,6 +6,7 @@ import {
   FolderOpen,
   Save,
   Download,
+  Image as ImageIcon,
   Sun,
   Moon,
   Monitor,
@@ -19,6 +20,7 @@ export interface AppHeaderProps {
   onLoadDiagram: () => void;
   onSaveDiagram: () => void;
   onExportJSON: () => void;
+  onExportImage: () => void;
   onToggleMobileMenu: () => void;
   isMobileMenuOpen: boolean;
 }
@@ -29,6 +31,7 @@ export function AppHeader({
   onLoadDiagram,
   onSaveDiagram,
   onExportJSON,
+  onExportImage,
   onToggleMobileMenu,
   isMobileMenuOpen,
 }: AppHeaderProps) {
@@ -103,6 +106,16 @@ export function AppHeader({
           >
             <Download className="h-4 w-4" />
             <span className="hidden sm:inline">Export</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onExportImage}
+            className="gap-2 hover:bg-muted/80 transition-colors bg-transparent"
+          >
+            <ImageIcon className="h-4 w-4" />
+            <span className="hidden sm:inline">Image</span>
           </Button>
         </div>
 
@@ -187,6 +200,18 @@ export function AppHeader({
             >
               <Download className="h-4 w-4" />
               Export JSON
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                onExportImage();
+                onToggleMobileMenu();
+              }}
+              className="w-full justify-start gap-2 hover:bg-accent transition-colors"
+            >
+              <ImageIcon className="h-4 w-4" />
+              Export Image
             </Button>
           </div>
         </div>

@@ -1925,12 +1925,15 @@ const reactFlowEdges: Edge[] = edges.map((edge, index) => {
     labelStyle: {
       fontSize: "12px",
       fontWeight: "500",
-      color: edgeColor,
-      backgroundColor: "white",
-      padding: "2px 6px",
-      borderRadius: "4px",
-      border: `1px solid ${edgeColor}`,
+      fill: edgeColor,
     },
+    labelBgStyle: {
+      fill: "white",
+      stroke: edgeColor,
+      strokeWidth: 1,
+    },
+    labelBgPadding: [6, 2],
+    labelBgBorderRadius: 4,
     markerEnd: {
       type: MarkerType.ArrowClosed,
       width: 20,

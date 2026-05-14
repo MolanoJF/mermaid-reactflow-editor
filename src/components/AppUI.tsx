@@ -182,6 +182,13 @@ export function AppUI({
         onLoadDiagram={dialog.openLoadDialog}
         onSaveDiagram={handleSaveDiagram}
         onExportJSON={handleExportToJSON}
+        onExportImage={() => {
+          if (flowMethodsRef.current?.exportImage) {
+            flowMethodsRef.current.exportImage();
+          } else {
+            toast.showToast('Image export is only available when Canvas is active and loaded', 'info');
+          }
+        }}
         onToggleMobileMenu={dialog.toggleMobileMenu}
         isMobileMenuOpen={dialog.isMobileMenuOpen}
       />
