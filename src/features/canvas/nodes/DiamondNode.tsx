@@ -135,10 +135,9 @@ function DiamondNodeInner(props: DiamondNodeProps) {
             fontSize: 11,
             fontWeight: 700,
             lineHeight: 1.2,
-            maxWidth: '80%',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
+            maxWidth: '85%',
+            whiteSpace: 'normal',
+            wordBreak: 'break-word',
           }}>
             {data.label}
           </div>
@@ -148,10 +147,9 @@ function DiamondNodeInner(props: DiamondNodeProps) {
             marginTop: 4,
             fontSize: 10,
             color: '#475569',
-            maxWidth: '80%',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
+            maxWidth: '85%',
+            whiteSpace: 'normal',
+            wordBreak: 'break-word',
           }}>
             {data.description}
           </div>

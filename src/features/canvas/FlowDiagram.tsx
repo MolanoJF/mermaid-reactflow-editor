@@ -233,13 +233,26 @@ function FlowDiagramInternal({
             ...connection,
             type: 'smoothstep',
             animated: true,
-            style: { stroke: '#1976D2', strokeWidth: 2.5 },
+            style: { stroke: '#000000', strokeWidth: 1.5 },
+            labelStyle: {
+              fontSize: "12px",
+              fontWeight: "500",
+              fill: '#000000',
+            },
+            labelBgStyle: {
+              fill: "white",
+              stroke: '#000000',
+              strokeWidth: 1,
+            },
+            labelBgPadding: [6, 2],
+            labelBgBorderRadius: 4,
             markerEnd: {
               type: MarkerType.ArrowClosed,
               width: 20,
               height: 20,
-              color: '#1976D2',
+              color: '#000000',
             },
+            zIndex: 0,
           },
           eds
         )
@@ -556,8 +569,21 @@ function FlowDiagramInternal({
           defaultEdgeOptions={{
             type: 'smoothstep',
             animated: true,
-            style: { stroke: '#1976D2', strokeWidth: 2.5 },
-            markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: '#1976D2' },
+            style: { stroke: '#000000', strokeWidth: 1.5 },
+            labelStyle: {
+              fontSize: "12px",
+              fontWeight: "500",
+              fill: '#000000',
+            },
+            labelBgStyle: {
+              fill: "white",
+              stroke: '#000000',
+              strokeWidth: 1,
+            },
+            labelBgPadding: [6, 2],
+            labelBgBorderRadius: 4,
+            markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: '#000000' },
+            zIndex: 0,
           }}
           connectionLineType={ConnectionLineType.SmoothStep}
           onEdgeClick={onEdgeClick}

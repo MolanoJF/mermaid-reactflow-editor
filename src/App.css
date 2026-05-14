@@ -923,9 +923,6 @@ textarea {
   font-size: clamp(9px, 1.5vw, 12px);
   /* Center text */
   text-align: center;
-  /* Allow text to adjust to container size */
-  overflow: hidden;
-  text-overflow: ellipsis;
   /* Add max width to prevent overly wide nodes */
   max-width: 200px;
 }

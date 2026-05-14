@@ -1711,6 +1711,82 @@ function createReactFlowElements(
   nodeClasses: Map<string, string[]>
 ): ReactFlowData {
   const reactFlowNodes: Node[] = [];
+  
+  // Tracks how many edges are currently attached to each node's handles
+  const sourceHandleUsage = new Map<string, number>();
+  const targetHandleUsage = new Map<string, number>();
+
+  // Pre-calculate totals to decide on handle distribution patterns
+  const nodeSourceTotals = new Map<string, number>();
+  const nodeTargetTotals = new Map<string, number>();
+  edges.forEach(edge => {
+    const sId = edge.isSourceSubgraph ? `subgraph-${edge.source}` : edge.source;
+    const tId = edge.isTargetSubgraph ? `subgraph-${edge.target}` : edge.target;
+    nodeSourceTotals.set(sId, (nodeSourceTotals.get(sId) || 0) + 1);
+    nodeTargetTotals.set(tId, (nodeTargetTotals.get(tId) || 0) + 1);
+  });
+
+  const isHorizontal = direction === 'LR' || direction === 'RL';
+
+  // Partition available handles (Top, Bottom, Left, Right) between sources and targets
+  // so they NEVER share a physical position.
+  const nodeHandleAssignments = new Map<string, { s: string[], t: string[] }>();
+  const allNodeIds = new Set([...nodeSourceTotals.keys(), ...nodeTargetTotals.keys()]);
+  
+  allNodeIds.forEach(id => {
+    const sTotal = nodeSourceTotals.get(id) || 0;
+    const tTotal = nodeTargetTotals.get(id) || 0;
+    
+    let sCount = 0;
+    let tCount = 0;
+    
+    if (sTotal > 0 && tTotal > 0) {
+      // Split the 4 available sides based on ratio
+      sCount = Math.max(1, Math.min(3, Math.round(4 * sTotal / (sTotal + tTotal))));
+      tCount = 4 - sCount;
+    } else if (sTotal > 0) {
+      sCount = 4;
+    } else {
+      tCount = 4;
+    }
+    
+    const sPref = isHorizontal ? ['right', 'bottom', 'top', 'left'] : ['bottom', 'right', 'left', 'top'];
+    const tPref = isHorizontal ? ['left', 'top', 'bottom', 'right'] : ['top', 'left', 'right', 'bottom'];
+    
+    const sFinal: string[] = [];
+    const tFinal: string[] = [];
+    
+    // Assign target positions first
+    for (let i = 0; i < tCount; i++) {
+      tFinal.push(tPref[i]);
+    }
+    
+    // Assign source positions from remaining available slots
+    const used = new Set(tFinal);
+    for (const p of sPref) {
+      if (sFinal.length < sCount && !used.has(p)) {
+        sFinal.push(p);
+      }
+    }
+    
+    nodeHandleAssignments.set(id, { s: sFinal, t: tFinal });
+  });
+
+  // Visually sort the assigned handles so they are used in a consistent order (e.g., Left-to-Right)
+  allNodeIds.forEach(id => {
+    const assignments = nodeHandleAssignments.get(id)!;
+    if (isHorizontal) {
+      // LR: Visual order Top-to-Bottom (top < right/left < bottom)
+      const lrOrder: Record<string, number> = { 'top': 0, 'right': 1, 'left': 1, 'bottom': 2 };
+      assignments.s.sort((a, b) => lrOrder[a] - lrOrder[b]);
+      assignments.t.sort((a, b) => lrOrder[a] - lrOrder[b]);
+    } else {
+      // TB: Visual order Left-to-Right (left < top/bottom < right)
+      const tbOrder: Record<string, number> = { 'left': 0, 'top': 1, 'bottom': 1, 'right': 2 };
+      assignments.s.sort((a, b) => tbOrder[a] - tbOrder[b]);
+      assignments.t.sort((a, b) => tbOrder[a] - tbOrder[b]);
+    }
+  });
 
   debugLog("Creating React Flow elements");
 
@@ -1994,6 +2070,19 @@ const reactFlowEdges: Edge[] = edges.map((edge, index) => {
     ? `subgraph-${edge.target}`
     : edge.target;
 
+  // Distribute handles to avoid all overlapping at once
+  const sIndex = sourceHandleUsage.get(sourceId) || 0;
+  const tIndex = targetHandleUsage.get(targetId) || 0;
+  
+  const assignments = nodeHandleAssignments.get(sourceId) || { s: ['bottom'], t: [] };
+  const targetAssignments = nodeHandleAssignments.get(targetId) || { s: [], t: ['top'] };
+
+  const sourceHandle = (assignments.s[sIndex % assignments.s.length] || 'bottom') + '-source';
+  const targetHandle = (targetAssignments.t[tIndex % targetAssignments.t.length] || 'top') + '-target';
+  
+  sourceHandleUsage.set(sourceId, sIndex + 1);
+  targetHandleUsage.set(targetId, tIndex + 1);
+
   // Create edge with explicit properties - ensure consistent styling
   return {
     id: `edge-${edge.source}-${edge.target}-${index}`,
@@ -2021,9 +2110,8 @@ const reactFlowEdges: Edge[] = edges.map((edge, index) => {
       height: 20,
       color: edgeColor,
     },
-  // Attach to side based on layout direction for better alignment
-  sourceHandle: (direction === 'LR' || direction === 'RL') ? 'right-source' : 'bottom-source',
-  targetHandle: (direction === 'LR' || direction === 'RL') ? 'left-target' : 'top-target',
+    sourceHandle,
+    targetHandle,
     zIndex: 0,
   };
 });
