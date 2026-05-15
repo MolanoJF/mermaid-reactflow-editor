@@ -1,4 +1,5 @@
 import { Button, Select, SelectTrigger, SelectContent, SelectItem } from "@/components/ui";
+import { Link } from "react-router-dom";
 import Logo from "@/components/Logo";
 import {
   Code2,
@@ -38,12 +39,12 @@ export function AppHeader({
   return (
     <header className="border-b bg-card px-4 py-2 flex items-center justify-between">
       <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
+        <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
           <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center overflow-hidden">
             <Logo className="h-6 w-6 text-primary-foreground" aria-hidden />
           </div>
           <h1 className="font-semibold text-lg">Mermaid Editor</h1>
-        </div>
+        </Link>
 
         <div className="flex items-center gap-2 bg-muted/50 rounded-lg p-1">
           <Button
