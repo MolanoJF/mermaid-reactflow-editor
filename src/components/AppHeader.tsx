@@ -43,7 +43,7 @@ export function AppHeader({
           <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center overflow-hidden">
             <Logo className="h-6 w-6 text-primary-foreground" aria-hidden />
           </div>
-          <h1 className="font-semibold text-lg">Mermaid Editor</h1>
+          <h1 className="font-semibold text-lg">Molior Flowchart</h1>
         </Link>
 
         <div className="flex items-center gap-2 bg-muted/50 rounded-lg p-1">

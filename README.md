@@ -1,12 +1,12 @@
 
-# Mermaid to React Flow Editor
+# Molior Studio
 
 https://github.com/user-attachments/assets/8d70cb2a-53e0-4886-9330-f190dc0d1adf
 
 ## Table of Contents
-## Mermaid React Flow Editor
+## Molior Studio
 
- A small editor that converts Mermaid diagrams (from the built-in code editor) into interactive, editable React Flow diagrams.
+ The professional flowchart and diagram editor. Transform Mermaid code into interactive, editable React Flow diagrams with Molior Studio.
 
 
 ## Quick links
@@ -65,7 +65,7 @@ npm run dev
 3. Open the URL printed by Vite (usually http://localhost:5173)
 
 4. Upload a `.md` file or paste Mermaid code in the Input area. Select extracted diagrams and interact with the canvas.
-## Mermaid React Flow Editor
+## Molior Studio
 
 A minimal, code-first editor that converts Mermaid diagram source (entered in the built-in editor) into an interactive React Flow canvas that you can pan, zoom, edit, and export.
 

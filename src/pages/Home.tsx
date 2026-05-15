@@ -17,7 +17,7 @@ const Home = () => {
             <GitGraph className="text-white w-6 h-6" />
           </div>
           <span className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
-            MermaidFlow
+            Molior Studio
           </span>
         </div>
         <div className="flex items-center gap-6">
@@ -33,18 +33,18 @@ const Home = () => {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
             </span>
-            New: Interactive Mermaid Editing
+            New: Molior Flowchart Editor
           </div>
 
           <h1 className="text-6xl md:text-7xl font-extrabold tracking-tight mb-8 leading-[1.1]">
-            Visualize Ideas with{" "}
+            Build Better with{" "}
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-blue-400 to-teal-400">
-              Infinite Flow
+              Molior Studio
             </span>
           </h1>
 
           <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto leading-relaxed">
-            The next generation Mermaid diagram editor. Transform text into beautiful, interactive React Flow diagrams with real-time editing and AI-powered assistance.
+            The next generation of flowchart editing. Transform text into beautiful, interactive React Flow diagrams with real-time editing and AI-powered assistance.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -52,7 +52,7 @@ const Home = () => {
               to="/flowchart"
               className="group relative px-8 py-4 bg-white text-black font-bold rounded-2xl transition-all duration-300 hover:scale-105 active:scale-95 shadow-xl shadow-white/10 flex items-center gap-2"
             >
-              Launch Flowchart Editor
+              Launch Molior Flowchart
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Link>
             <button className="px-8 py-4 bg-white/5 border border-white/10 text-white font-bold rounded-2xl transition-all duration-300 hover:bg-white/10">
@@ -100,7 +100,7 @@ const Home = () => {
 
       <footer className="relative z-10 border-t border-white/5 py-12 mt-20">
         <div className="container mx-auto px-6 text-center text-gray-500 text-sm">
-          <p>© 2026 MermaidFlow. All rights reserved.</p>
+          <p>© 2026 Molior Studio. All rights reserved.</p>
         </div>
       </footer>
     </div>
