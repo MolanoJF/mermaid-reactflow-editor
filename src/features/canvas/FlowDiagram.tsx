@@ -30,6 +30,7 @@ import {
   deleteSelected,
   distributeNodes,
   duplicateNodes,
+  getAbsolutePosition,
   lockNodes,
   sendToBack,
   unlockNodes,
@@ -126,6 +127,9 @@ function FlowDiagramInternal({
       onRegisterMethods({
         openSearch: () => setShowSearch(true),
         exportImage: handleDownloadImage,
+        // expose current state directly to ensure parent has latest modifications
+        getNodes: () => reactFlowInstance.getNodes(),
+        getEdges: () => reactFlowInstance.getEdges(),
         // expose selectSubgraphContents so parent toolbar can trigger it
         selectSubgraphContents: (id?: string) => onSelectSubgraphContents(id),
       } as any);
@@ -134,7 +138,7 @@ function FlowDiagramInternal({
     return () => {
       if (onRegisterMethods) onRegisterMethods({});
     };
-  }, [onRegisterMethods, handleDownloadImage]);
+  }, [onRegisterMethods, handleDownloadImage, reactFlowInstance]);
 
   // only update selected sets when selection actually changes
   const onNodesChange = useCallback(

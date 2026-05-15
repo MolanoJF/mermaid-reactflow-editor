@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { convertMermaidToReactFlow, ReactFlowData } from "@/features/diagram/converter";
 import { DEFAULT_AI_SETTINGS } from "@/constants";
 import type { SavedDiagram, UseDiagramReturn } from "@/types/hooks";
@@ -18,6 +18,17 @@ export const useDiagram = (): UseDiagramReturn => {
   const [savedDiagrams, setSavedDiagrams] = useState<SavedDiagram[]>([]);
   const [conversionError, setConversionError] = useState<string | null>(null);
   const lastAppliedMermaidRef = useRef<string>("");
+
+  // Sync to sessionStorage when changed
+  useEffect(() => {
+    try {
+      if (savedDiagrams.length > 0) {
+        sessionStorage.setItem("mrfe.savedDiagrams", JSON.stringify(savedDiagrams));
+      }
+    } catch (e) {
+      logger.warn("Failed to save to sessionStorage", e);
+    }
+  }, [savedDiagrams]);
 
   const convertMermaid = useCallback(async (source: string) => {
     if (!source.trim()) return;

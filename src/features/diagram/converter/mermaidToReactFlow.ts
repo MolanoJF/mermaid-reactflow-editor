@@ -1741,12 +1741,19 @@ function createReactFlowElements(
     let tCount = 0;
     
     if (sTotal > 0 && tTotal > 0) {
-      // Split the 4 available sides based on ratio
-      sCount = Math.max(1, Math.min(3, Math.round(4 * sTotal / (sTotal + tTotal))));
-      tCount = 4 - sCount;
+      // If 2 or less inputs, force them to a single side to keep them unified
+      if (tTotal <= 2) {
+        tCount = 1;
+        sCount = 3;
+      } else {
+        // For more inputs, split the 4 available sides based on ratio
+        tCount = Math.max(1, Math.min(3, Math.round(4 * tTotal / (sTotal + tTotal))));
+        sCount = 4 - tCount;
+      }
     } else if (sTotal > 0) {
       sCount = 4;
     } else {
+      // If no outputs, targets can take all sides, but we'll still use only one later
       tCount = 4;
     }
     
@@ -2073,12 +2080,45 @@ const reactFlowEdges: Edge[] = edges.map((edge, index) => {
   // Distribute handles to avoid all overlapping at once
   const sIndex = sourceHandleUsage.get(sourceId) || 0;
   const tIndex = targetHandleUsage.get(targetId) || 0;
+  const sTotal = nodeSourceTotals.get(sourceId) || 0;
+  const tTotal = nodeTargetTotals.get(targetId) || 0;
   
-  const assignments = nodeHandleAssignments.get(sourceId) || { s: ['bottom'], t: [] };
-  const targetAssignments = nodeHandleAssignments.get(targetId) || { s: [], t: ['top'] };
+  const sAssigns = nodeHandleAssignments.get(sourceId) || { s: ['bottom'], t: [] };
+  const tAssigns = nodeHandleAssignments.get(targetId) || { s: [], t: ['top'] };
 
-  const sourceHandle = (assignments.s[sIndex % assignments.s.length] || 'bottom') + '-source';
-  const targetHandle = (targetAssignments.t[tIndex % targetAssignments.t.length] || 'top') + '-target';
+  let sHandle = '';
+  let tHandle = '';
+
+  if (isHorizontal) {
+    // LR Source Patterns: 1=right, 2=top/bottom, 3=top/right/bottom
+    if (sTotal === 1 && sAssigns.s.includes('right')) sHandle = 'right';
+    else if (sTotal === 2 && sAssigns.s.includes('top') && sAssigns.s.includes('bottom')) sHandle = sIndex === 0 ? 'top' : 'bottom';
+    else if (sTotal === 3 && sAssigns.s.includes('top') && sAssigns.s.includes('right') && sAssigns.s.includes('bottom')) {
+      sHandle = ['top', 'right', 'bottom'][sIndex];
+    } else sHandle = sAssigns.s[sIndex % sAssigns.s.length];
+
+    // Target Patterns: 1-2=primary, 3=top/left/bottom
+    if (tTotal <= 2) tHandle = tAssigns.t[0];
+    else if (tTotal === 3 && tAssigns.t.includes('top') && tAssigns.t.includes('left') && tAssigns.t.includes('bottom')) {
+      tHandle = ['top', 'left', 'bottom'][tIndex];
+    } else tHandle = tAssigns.t[tIndex % tAssigns.t.length];
+  } else {
+    // TB Source Patterns: 1=bottom, 2=left/right, 3=left/bottom/right
+    if (sTotal === 1 && sAssigns.s.includes('bottom')) sHandle = 'bottom';
+    else if (sTotal === 2 && sAssigns.s.includes('left') && sAssigns.s.includes('right')) sHandle = sIndex === 0 ? 'left' : 'right';
+    else if (sTotal === 3 && sAssigns.s.includes('left') && sAssigns.s.includes('right') && sAssigns.s.includes('bottom')) {
+      sHandle = ['left', 'bottom', 'right'][sIndex];
+    } else sHandle = sAssigns.s[sIndex % sAssigns.s.length];
+
+    // Target Patterns: 1-2=primary, 3=left/top/right
+    if (tTotal <= 2) tHandle = tAssigns.t[0];
+    else if (tTotal === 3 && tAssigns.t.includes('left') && tAssigns.t.includes('top') && tAssigns.t.includes('right')) {
+      tHandle = ['left', 'top', 'right'][tIndex];
+    } else tHandle = tAssigns.t[tIndex % tAssigns.t.length];
+  }
+
+  const sourceHandle = (sHandle || 'bottom') + '-source';
+  const targetHandle = (tHandle || 'top') + '-target';
   
   sourceHandleUsage.set(sourceId, sIndex + 1);
   targetHandleUsage.set(targetId, tIndex + 1);

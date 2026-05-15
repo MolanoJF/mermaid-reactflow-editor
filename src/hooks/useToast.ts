@@ -1,9 +1,10 @@
 import { useState, useCallback } from "react";
+import type { ToastType, Toast } from "@/types";
 
 export const useToast = () => {
-  const [toasts, setToasts] = useState<{ id: string; message: string; type: "success" | "error" | "info"; duration?: number }[]>([]);
+  const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const showToast = useCallback((message: string, type: "success" | "error" | "info", duration: number = 2400) => {
+  const showToast = useCallback((message: string, type: ToastType, duration: number = 2400) => {
     setToasts((ts) => [
       ...ts,
       { id: Math.random().toString(36).slice(2), message, type, duration },

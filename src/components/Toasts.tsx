@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-export type ToastType = 'success' | 'error' | 'info';
+export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 export interface ToastItem {
   id: string;
@@ -27,6 +27,7 @@ export function Toasts({ toasts, onDismiss }: { toasts: ToastItem[]; onDismiss: 
             {t.type === 'success' && <i className="bi bi-check-circle-fill" />}
             {t.type === 'error' && <i className="bi bi-x-circle-fill" />}
             {t.type === 'info' && <i className="bi bi-info-circle-fill" />}
+            {t.type === 'warning' && <i className="bi bi-exclamation-triangle-fill" />}
           </div>
           <div className="toast-message">{t.message}</div>
           <button className="btn btn-sm btn-link text-muted p-0 ms-2" onClick={() => onDismiss(t.id)} aria-label="Dismiss">

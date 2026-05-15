@@ -65,6 +65,8 @@ export function AppUI({
   const flowMethodsRef = useRef<{
     openSearch?: () => void;
     exportImage?: () => Promise<void>;
+    getNodes?: () => Node[];
+    getEdges?: () => Edge[];
     selectSubgraphContents?: (id?: string) => void
   } | null>(null);
 
@@ -72,6 +74,8 @@ export function AppUI({
   const registerFlowMethods = useCallback((methods: {
     openSearch?: () => void;
     exportImage?: () => Promise<void>;
+    getNodes?: () => Node[];
+    getEdges?: () => Edge[];
     selectSubgraphContents?: (id?: string) => void
   } | {}) => {
     if (!methods || Object.keys(methods).length === 0) {
@@ -92,37 +96,72 @@ export function AppUI({
   }, [diagram]);
 
   // Handle save diagram
-  const handleSaveDiagram = useCallback(() => {
+  const handleSaveDiagram = useCallback(async () => {
     const src = diagram.mermaidSource?.trim();
-    const hasNodes = (diagram.flowData.nodes || []).length > 0;
+    // Get latest nodes/edges directly from canvas if available
+    const currentNodes = flowMethodsRef.current?.getNodes ? flowMethodsRef.current.getNodes() : (diagram.flowData.nodes || []);
+    const currentEdges = flowMethodsRef.current?.getEdges ? flowMethodsRef.current.getEdges() : (diagram.flowData.edges || []);
+    
+    const hasNodes = currentNodes.length > 0;
     if (!src || src === '' || !hasNodes) {
       toast.showToast('Cannot save: please provide Mermaid code and at least one node', 'info');
       return;
     }
 
-    const id = Math.random().toString(36).slice(2);
     const now = Date.now();
-    const defaultName = new Date(now).toLocaleString();
-    const item = {
-      id,
+    const isoDate = new Date(now).toISOString().slice(0, 19).replace(/:/g, '-');
+    const defaultName = `diagram-${isoDate}`;
+    
+    const payload = {
+      id: `save-${now}`,
       name: defaultName,
       mermaid: diagram.mermaidSource,
-      nodes: diagram.flowData.nodes || [],
-      edges: diagram.flowData.edges || [],
+      nodes: currentNodes,
+      edges: currentEdges,
       createdAt: now,
       updatedAt: now,
     };
-    const next = [item, ...diagram.savedDiagrams];
-    diagram.setSavedDiagrams(next);
-    diagram.lastAppliedMermaidRef.current = diagram.mermaidSource;
-    toast.showToast('Diagram saved to session', 'success');
-    accordion.setAccordionOpen((prev) => ({ ...prev, saved: true }));
+
+    try {
+      // Attempt to save to the local 'diagrams' folder via Vite middleware
+      const response = await fetch('/api/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        toast.showToast(`Diagram saved to folder: ${result.filename}`, 'success');
+        
+        // Also update the session state so it shows up in the Load Dialog immediately
+        const item = { ...payload, id: result.id || payload.id };
+        diagram.setSavedDiagrams([item, ...diagram.savedDiagrams]);
+        diagram.lastAppliedMermaidRef.current = diagram.mermaidSource;
+        accordion.setAccordionOpen((prev) => ({ ...prev, saved: true }));
+      } else {
+        throw new Error('Server responded with error');
+      }
+    } catch (err) {
+      console.error('Failed to save to folder:', err);
+      // Fallback to session save if API is unavailable (e.g. production)
+      const item = { ...payload, name: new Date(now).toLocaleString() };
+      const next = [item, ...diagram.savedDiagrams];
+      diagram.setSavedDiagrams(next);
+      diagram.lastAppliedMermaidRef.current = diagram.mermaidSource;
+      toast.showToast('Saved to session (could not access local folder)', 'warning');
+      accordion.setAccordionOpen((prev) => ({ ...prev, saved: true }));
+    }
   }, [diagram, toast, accordion]);
 
   // Handle export to JSON
   const handleExportToJSON = useCallback(() => {
     const src = diagram.mermaidSource?.trim();
-    const hasNodes = (diagram.flowData.nodes || []).length > 0;
+    // Get latest nodes/edges directly from canvas if available
+    const currentNodes = flowMethodsRef.current?.getNodes ? flowMethodsRef.current.getNodes() : (diagram.flowData.nodes || []);
+    const currentEdges = flowMethodsRef.current?.getEdges ? flowMethodsRef.current.getEdges() : (diagram.flowData.edges || []);
+    
+    const hasNodes = currentNodes.length > 0;
     if (!src || src === '' || !hasNodes) {
       toast.showToast('Cannot export: please provide Mermaid code and at least one node', 'info');
       return;
@@ -133,8 +172,8 @@ export function AppUI({
       id: `export-${now}`,
       name: `diagram-${new Date(now).toISOString().slice(0, 19).replace(/:/g, '-')}`,
       mermaid: diagram.mermaidSource,
-      nodes: diagram.flowData.nodes || [],
-      edges: diagram.flowData.edges || [],
+      nodes: currentNodes,
+      edges: currentEdges,
       createdAt: now,
       updatedAt: now,
     };
@@ -271,6 +310,7 @@ export function AppUI({
         savedDiagrams={diagram.savedDiagrams}
         setSavedDiagrams={diagram.setSavedDiagrams}
         onLoadDiagram={(diagramItem) => {
+          diagram.lastAppliedMermaidRef.current = diagramItem.mermaid;
           diagram.setMermaidSource(diagramItem.mermaid);
           diagram.setFlowData({ nodes: diagramItem.nodes, edges: diagramItem.edges });
           toast.showToast('Diagram loaded successfully', 'success');
